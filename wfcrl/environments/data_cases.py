@@ -21,6 +21,7 @@ class DefaultControl:
     yaw = (-40, 40, 5)
     pitch = (0, 45, 1)
     torque = (-2e4, 2e4, 1e3)
+    ct = (0.1,0.8, 0.05)
 
 
 @dataclass
@@ -84,7 +85,7 @@ class FlorisCase(FarmCase):
     set_wind_speed: bool = False
     set_wind_direction: bool = False
     wind_time_series: str = None
-
+    controls = None
     @property
     def interface_kwargs(self):
         return self.simul_params
@@ -97,6 +98,7 @@ class FlorisCase(FarmCase):
             "direction": 270,
             "speed": 8,
             "wind_time_series": self.wind_time_series,
+            "controls" : self.controls
         }
 
 

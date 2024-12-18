@@ -82,9 +82,9 @@ class DfacSpaceExtractor_track(nn.Module):
         yaw_space = local_observation_space[control]
         wind_space = global_observation_space["freewind_measurements"]
         self.observation_space = gym.spaces.Box(
-            low=np.concatenate([yaw_space.low, wind_space.low]),
-            high=np.concatenate([yaw_space.high, wind_space.high]),
-            shape=(yaw_space.shape[0] + wind_space.shape[0],)
+            low=np.concatenate([yaw_space.low, wind_space.low,[0]]),
+            high=np.concatenate([yaw_space.high, wind_space.high,[5]]),
+            shape=(yaw_space.shape[0] + wind_space.shape[0]+1,)
         )
 
     def forward(self, local_obs, global_obs, step):

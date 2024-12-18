@@ -7,9 +7,10 @@ from wfcrl.environments.data_cases import (
     DefaultControl,
     FarmRowFastfarm,
     FarmRowFloris,
+    # FarmRowWFSim,
     named_cases_dictionary,
 )
-from wfcrl.interface import FastFarmInterface, FlorisInterface
+from wfcrl.interface import FastFarmInterface, FlorisInterface, WFSimInterface
 from wfcrl.multiagent_env import MAWindFarmEnv
 from wfcrl.simple_env import WindFarmEnv
 from wfcrl.wrappers import AECLogWrapper, LogWrapper
@@ -18,7 +19,7 @@ env_pattern = r"(Dec_)*(\w+\d*_)(\w+)"
 layout_pattern = r"Turb(\d+)_Row(\d+)"
 
 # Register named layouts
-registered_simulators = ["Fastfarm", "Floris"]
+registered_simulators = ["Fastfarm", "Floris", "WFSim"]
 registered_layouts = list(named_cases_dictionary.keys())
 registered_layouts.extend([f"Turb{n}_Row1_" for n in range(1, 13)])
 control_types = ["", "Dec_"]
@@ -37,6 +38,8 @@ def get_default_control(controls):
         control_dict["pitch"] = default_controls.pitch
     if "torque" in controls:
         control_dict["torque"] = default_controls.torque
+    if "ct" in controls:
+        control_dict["ct"] = default_controls.torque
     return control_dict
 
 
@@ -54,6 +57,8 @@ def get_case(name: str, simulator: str):
     # to be procedurally generated
     assert num_rows == 1
     # Procedurally generate a single row wind farm
+    # row_cases = [FarmRowFastfarm, FarmRowFloris, FarmRowWFSim]
+    # cls = row_cases[simulator_index]
     cls = FarmRowFastfarm if simulator_index == 0 else FarmRowFloris
     case = cls(
         num_turbines=num_turbines,
@@ -87,6 +92,7 @@ def make(env_id: str, controls: Union[dict, list] = ["yaw"], log=True, **env_kwa
     name = match.group(2)
     simulator = match.group(3)
     case = get_case(name, simulator)
+    case.controls = controls
     validate_case(env_id, case)
     env_class = MAWindFarmEnv if decentralized == "Dec_" else WindFarmEnv
     simulator_class = FastFarmInterface if simulator == "Fastfarm" else FlorisInterface

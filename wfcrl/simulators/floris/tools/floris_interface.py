@@ -131,7 +131,7 @@ class FlorisInterface(LoggerBase):
                     self.floris.farm.n_turbines
                 )
             )
-        self.floris.farm.yaw_angles = yaw_angles
+        else : self.floris.farm.yaw_angles = yaw_angles
 
         if ct_actions is not None :
             self.floris.farm.cts = ct_actions 

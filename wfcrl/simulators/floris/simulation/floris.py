@@ -58,7 +58,7 @@ class Floris(BaseClass):
     wake: WakeModelManager = field(converter=WakeModelManager.from_dict)
     farm: Farm = field(converter=Farm.from_dict)
     flow_field: FlowField = field(converter=FlowField.from_dict)
-
+    controls : list = field(converter = list)
     # These fields are included to appease the requirement that all inputs must
     # be mapped to a field in the class. They are not used in FLORIS.
     name: str  = field(converter=str)
@@ -68,7 +68,6 @@ class Floris(BaseClass):
     grid: Grid = field(init=False)
 
     def __attrs_post_init__(self) -> None:
-
         # Configure logging
         logging_manager.configure_console_log(
             self.logging["console"]["enable"],

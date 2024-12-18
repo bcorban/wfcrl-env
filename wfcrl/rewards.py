@@ -52,7 +52,7 @@ class FilteredStep(StepPercentage):
     def __init__(self, reference: float = 0.0, threshold: float = 0.0, reward_type: str = 'shaped'):
         super().__init__(reference)
         self.threshold = threshold
-        self.name = "filtered_step"
+        self.name = "filtered_step" + reward_type
         self.reward_type = reward_type
 
     def __call__(self, reward : float = 0, timestep : int = 0, load_penalty = 0):
@@ -97,7 +97,7 @@ class RewardSum(RewardShaper):
 class TrackReward():
     def __init__(self, reference, threshold: float = 0.0):
         self.reference = reference
-
+        self.name = "track_reward"
     def __call__(self, reward :  float , timestep : int, load_penalty : float = 0):
         return self.compute_reward(reward, timestep, load_penalty)
 

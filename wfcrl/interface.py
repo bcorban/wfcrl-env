@@ -446,7 +446,7 @@ class FastFarmInterface(MPI_Interface):
 
 
 class FlorisInterface(BaseInterface):
-    CONTROL_SET = ["yaw"]
+    CONTROL_SET = ["yaw", "ct"]
     # `wind_measurements` handled separately
 
     DEFAULT_MEASURE_MAP = {

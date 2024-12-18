@@ -38,6 +38,7 @@ def create_floris_case(case: Dict, output_dir=None):
         config = yaml.safe_load(fp)
     config["farm"]["layout_x"] = case["xcoords"]
     config["farm"]["layout_y"] = case["ycoords"]
+    config["controls"] =  case["controls"]
     if case["direction"] is not None:
         config["flow_field"]["wind_directions"] = [case["direction"]]
     if case["speed"] is not None:
