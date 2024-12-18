@@ -6,10 +6,12 @@ from typing import Dict, Iterable, List, Union
 
 import numpy as np
 import pandas as pd
-from floris import tools
+from wfcrl.simulators.floris import tools
+import wfcrl.simulators.floris.tools.visualization as wakeviz
 from mpi4py import MPI
-
+import matplotlib.pyplot as plt
 from wfcrl.environments import FarmCase
+
 from wfcrl.simul_utils import (
     create_dll,
     create_ff_case,
@@ -19,6 +21,14 @@ from wfcrl.simul_utils import (
     read_simul_info,
     write_inflow_info,
 )
+
+from wfcrl.simulators.wfsimpy.scr.farmSettings import *
+from wfcrl.simulators.wfsimpy.scr.SimulationStepping import *
+from wfcrl.simulators.wfsimpy.scr.Making_matrices import *
+from wfcrl.simulators.wfsimpy.scr.sparse_null import *
+from wfcrl.simulators.wfsimpy.scr.PostProcessing import *
+from wfcrl.simulators.wfsimpy.scr.SpatialDiscretization import *
+from wfcrl.simulators.wfsimpy.scr.SystemDescription import *
 
 
 class BaseInterface(ABC):
@@ -444,7 +454,9 @@ class FlorisInterface(BaseInterface):
         "wind_speed": 1,
         "wind_direction": 2,
         "load": [3, 4, 5, 6],
+        "ct" : 7,
         "freewind_measurements": None,
+
     }
 
     YAW_TAG = 1
@@ -551,14 +563,19 @@ class FlorisInterface(BaseInterface):
     def update_command(
         self,
         yaw: np.ndarray = None,
+        ct: np.ndarray = None
     ):
         if yaw is not None:
             self._current_yaw_command[0, 0, :] = yaw.astype(np.double)
+        if ct is not None:
+            self._current_ct_command[0, 0, :] = ct.astype(np.double)
+            self.pitchs=self.fi.floris.farm.pitch_angles_sorted.flatten()
         self.update_wind(*next(self.wind_generator))
-        self.fi.calculate_wake(yaw_angles=self._current_yaw_command)
+        self.fi.calculate_wake(yaw_angles=self._current_yaw_command, ct_actions = self._current_ct_command)
         self.current_measures[
             :, self.measure_map["yaw"]
         ] = self.fi.floris.farm.yaw_angles
+        self.current_measures[:, self.measure_map["ct"]] = self.fi.floris.farm.cts.flatten()
         wind_measures_indices = [
             self.measure_map["wind_speed"],
             self.measure_map["wind_direction"],
@@ -582,7 +599,7 @@ class FlorisInterface(BaseInterface):
     def init(self, wind_speed: float = None, wind_direction: float = None):
         if self.wind_time_series and wind_speed is not None:
             warnings.warn(
-                f"Wind direction = {wind_speed} requested, but wind_time_series"
+                f"Wind speed = {wind_speed} requested, but wind_time_series"
                 "mode is activated. Request will be ignored."
             )
             wind_speed = None
@@ -602,6 +619,8 @@ class FlorisInterface(BaseInterface):
         # )
         self._num_iter = 0
         self._current_yaw_command = np.zeros((1, 1, self.num_turbines))
+        self._current_ct_command = self.fi.floris.farm.cts
+        self.pitchs = np.zeros(self.num_turbines)
         self.current_measures = (
             np.zeros((self.num_turbines, self._num_measures)) * np.nan
         )
@@ -642,9 +661,11 @@ class FlorisInterface(BaseInterface):
         return velocities.squeeze(), directions.squeeze()
 
     def get_measure(self, measure: str) -> np.ndarray:
-        if measure not in self.measure_map:
+        if measure == 'pitch_angles':
+            return self.pitchs
+        elif measure not in self.measure_map:
             return None
-        if measure == "freewind_measurements":
+        elif measure == "freewind_measurements":
             return self.avg_wind()
         return self.current_measures[:, self.measure_map[measure]]
 
@@ -660,3 +681,216 @@ class FlorisInterface(BaseInterface):
             wind_speeds=[wind_speed] if wind_speed is not None else None,
             wind_directions=[wind_direction] if wind_direction is not None else None,
         )
+
+    def render(self, out_dir = None):
+        horizontal_plane = self.fi.calculate_horizontal_plane(
+            x_resolution=200,
+            y_resolution=100,
+            height=90.0,
+            yaw_angles=self.fi.floris.farm.yaw_angles
+
+        )
+
+        wakeviz.visualize_cut_plane(
+            horizontal_plane,
+            # ax=ax_list[0],
+            label_contours=False,
+            title=""
+        )
+
+        plt.savefig(out_dir + 'windfield.png', dpi=300)
+
+
+class WFSimInterface(BaseInterface):
+    CONTROL_SET = ["yaw", "ct"]
+    # `wind_measurements` handled separately
+    DEFAULT_MEASURE_MAP = {"yaw": 1, "freewind_measurements": None}
+    YAW_TAG = 1
+    PITCH_TAG = 2
+    TORQUE_TAG = 3
+    COM_TAG = 0
+    MEASURES_TAG = 4
+
+    def __init__(
+            self,
+            case: FarmCase,
+            num_turbines: int,
+            max_iter: int = int(1e4),
+            log_file: str = None,
+    ):
+        super().__init__()
+
+
+        self.num_turbines = num_turbines
+        self._buffer_size = 50000
+        self._power_buffers = PowerBuffer(self.num_turbines, size=self._buffer_size)
+        self._power_buffers.empty()
+        self._default_avg_window = case.buffer_window
+
+
+        params = case.simul_params
+        self.Wp = layoutSet_sowfa(
+            timestep=case.dt,
+            Nx=params['Nx'],
+            Ny=params['Ny'],
+            Drotor=case.Drotor,
+            turb_pos_x=params['xcoords'],
+            Lx=params['Lx'],
+            turb_pos_y=params['ycoords'],
+            Ly=params['Ly'],
+            u_Inf=params['u_Inf'],
+            v_Inf=params['v_Inf'],
+            powerscale=params['powerscale'],
+            forcescale=params['forcescale'],
+            lm_slope=params['lm_slope'],
+            d_lower=params['d_lower'],
+            d_upper=params['d_upper']
+        )
+        self.modelOptions = solverSet(self.Wp)
+        # control options
+        self.modelOptions.max_it_dyn = 2
+        self.modelOptions.use_maps_for_cp = True  # if true, and not pitch control, find cp from LUT(wind_speed,cp) :
+        # see function Actuator in SystemDescription.py
+        self.modelOptions.control_pitch = False  # if true, we have to decide input "turbInput.CT_prime", and cp is decided from LUT(ct,cp)
+        self.modelOptions.control_yaw = True  # if true, we have to decide input "turbInput.phi"
+
+        # quantities to save during the simulation
+        self.modelOptions.savePower = True  # save powers
+        self.modelOptions.saveCP = True  # save cp
+        self.modelOptions.saveCT = True  # save ct
+        self.modelOptions.saveForce = True  # save forces Fx and Fy
+
+        # -- display settings
+        self.verboseOptions = displaySet()
+
+        # -- Initialize WFSim model
+        self.Wp, self.sol, self.sys = InitWFSim(self.Wp, self.modelOptions, self.verboseOptions.plotMesh)
+        n_turbines = self.Wp.turbine.N
+
+        # -- load aerodynamic parameter maps
+        self.Wp.w_to_ct, self.Wp.w_to_cp, self.Wp.ct_to_cp = read_maps()
+        self.turbInput = type("turbInput", (object,), {})
+        # self.turbInput.CT_prime = np.array([0.76]*n_turbines)
+        self.turbInput.phi = np.zeros(n_turbines)
+        self.sol.Timesteps = []
+        self._current_command = np.zeros((1, 1, self.num_turbines))
+
+        self.measure_map = self.DEFAULT_MEASURE_MAP
+        self.current_measures = (
+                np.zeros((self.num_turbines, len(self.measure_map))) * np.nan
+        )
+        self._num_iter = 0
+        self.max_iter = max_iter
+        self._logging = False
+
+        if log_file is not None:
+            self._log_file = log_file
+            self._logging = True
+
+    @classmethod
+    def from_case(
+            cls,
+            case: FarmCase,
+            log_file: str = None,
+            output_dir: str = None,
+    ):
+
+        return cls(
+            num_turbines=case.num_turbines,
+            case=case,
+            max_iter=case.max_iter,
+            log_file=log_file,
+        )
+
+    @property
+    def wind_speed(self):
+        return self.Wp.site.u_Inf
+
+    @property
+    def wind_dir(self):
+        return 270 # TO BE CHANGED (trigo u_inf, v_inf)
+
+
+
+    def update_command(
+            self,
+            yaw: np.ndarray = None,
+            ct: np.ndarray = None,
+
+    ):
+
+        if yaw is not None:
+            self._current_command = yaw
+            self.set_yaw_angles(yaw)
+
+        elif ct is not None:
+            pass
+            # self._current_command = pitch
+            # self.set_ct_prime(pitch)
+
+        self.sol, self.sys = WFSim_timestepping(self.sol, self.sys, self.Wp, self.turbInput, self.modelOptions)
+        self.sol.Timesteps.append(self.sol.time)
+
+        self.current_measures[:, 0] = self.get_yaw_angles()
+
+        self.current_measures[:, 1] = self.get_ct_prime()
+        self._power_buffers.add(self.sol.turbine.power[:])
+
+        self._num_iter += 1
+
+        return self._num_iter == self.max_iter
+
+    def init(self):
+        self._num_iter = 0
+        self._current_command = np.zeros((1, 1, self.num_turbines))
+        self.current_measures = (
+                np.zeros((self.num_turbines, len(self.measure_map))) * np.nan
+        )
+
+    def get_command(self):
+        return self._current_command.copy().flatten()
+
+    def set_yaw_angles(self, yaws: List):
+        self.turbInput.phi = yaws.astype(np.float32)
+        # self.turbInput.phi = np.array([38,30,0]).astype(np.float32)
+
+    def get_yaw_angles(self):
+        return self.turbInput.phi
+
+    def get_ct_prime(self):
+        return self.sol.turbine.CT
+        # return self.turbInput.CT_prime
+
+    # def get_pitchs(self):
+    #     return self.farm.get_pitchs()
+
+    def set_ct_prime(self, cts: List, sync: bool = True):
+        pass
+        self.turbInput.CT_prime= cts
+
+    def avg_farm_power(self):
+        powers = self.avg_powers()
+        return powers.sum()
+
+    def avg_powers(self, window = None):
+        window = self._default_avg_window
+        return self._power_buffers.get_agg(window)
+
+    def avg_wind(self):
+        return np.array([self.wind_speed, self.wind_dir])
+
+    def get_measure(self, measure: str) -> np.ndarray:
+        if measure == 'pitch_angles':
+            return np.zeros(self.num_turbines)
+        if measure == "freewind_measurements":
+            return self.avg_wind()
+        if measure == "load":
+            return np.zeros((self.num_turbines,1))
+
+        elif measure not in self.measure_map:
+            return None
+
+        return self.current_measures[:, self.measure_map[measure]]
+
+    def render(self,out_dir=None):
+        animation_turb(self.Wp, self.sol, n_turbines=self.num_turbines, idx_0=1, res_file=out_dir)

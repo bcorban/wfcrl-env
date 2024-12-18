@@ -33,7 +33,7 @@ class WindFarmMDP:
         }
     """
 
-    CONTROL_SET = ["yaw", "pitch", "torque"]
+    CONTROL_SET = ["yaw", "pitch", "torque", "ct"]
     POSSIBLE_STATE_ATTRIBUTES = [
         "freewind_measurements",
         "wind_speed",
@@ -41,6 +41,7 @@ class WindFarmMDP:
         "yaw",
         "pitch",
         "torque",
+        "ct"
     ]
     DEFAULT_BOUNDS = {
         "wind_speed": [3, 28],
@@ -48,6 +49,7 @@ class WindFarmMDP:
         "yaw": [-40, 40],
         "pitch": [0, 360],
         "torque": [-1e5, 1e5],
+        "ct" : [0,1]
     }
     ACTUATORS_RATE = {"yaw": 0.3, "pitch": 8}
 

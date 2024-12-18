@@ -262,6 +262,6 @@ def create_ff_case(case: Dict, output_dir=None):
 
     out_fstf["TMax"] = max_time
     out_fstf["DT_Low"] = dt
-    out_fstf["WrDisDT"] = out_fstf["DT_Low"]
+    out_fstf["WrDisDT"] = 50*out_fstf["DT_Low"]
     out_fstf.write(outputFSTF)
     return outputFSTF

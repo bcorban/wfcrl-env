@@ -14,3 +14,8 @@ build/*
 WFCRL.egg-info/*
 kernel-wfcrl/*
 __simul__/*
+simulators/wfsimpy/.idea/*
+simulators/wfsimpy/.vscode/*
+simulators/wfsimpy/fastfarm_res/*
+simulators/wfsimpy/old_demos/*
+simulators/wfsimpy/wfsim_res/*
