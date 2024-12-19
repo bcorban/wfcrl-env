@@ -49,7 +49,7 @@ class WindFarmMDP:
         "yaw": [-40, 40],
         "pitch": [0, 360],
         "torque": [-1e5, 1e5],
-        "ct" : [0,1]
+        "ct" : [0.,1]
     }
     ACTUATORS_RATE = {"yaw": 0.3, "pitch": 8}
 

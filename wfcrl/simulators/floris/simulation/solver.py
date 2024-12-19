@@ -102,22 +102,23 @@ def sequential_solver(
         u_i = flow_field.u_sorted[:, :, i:i+1]
         v_i = flow_field.v_sorted[:, :, i:i+1]
 
-        # ct_i = Ct(
-        #     velocities=flow_field.u_sorted,
-        #     yaw_angle=farm.yaw_angles_sorted,
-        #     tilt_angle=farm.tilt_angles_sorted,
-        #     ref_tilt_cp_ct=farm.ref_tilt_cp_cts_sorted,
-        #     fCt=farm.turbine_fCts,
-        #     tilt_interp=farm.turbine_fTilts,
-        #     correct_cp_ct_for_tilt=farm.correct_cp_ct_for_tilt_sorted,
-        #     turbine_type_map=farm.turbine_type_map_sorted,
-        #     ix_filter=[i],
-        #     average_method=grid.average_method,
-        #     cubature_weights=grid.cubature_weights
-        # )
-        # ct_i = ct_i[:, :, 0:1, None, None]
-
-        ct_i = farm.cts_sorted.flatten()[i]
+        if farm.controls == 'yaw':
+            ct_i = Ct(
+                velocities=flow_field.u_sorted,
+                yaw_angle=farm.yaw_angles_sorted,
+                tilt_angle=farm.tilt_angles_sorted,
+                ref_tilt_cp_ct=farm.ref_tilt_cp_cts_sorted,
+                fCt=farm.turbine_fCts,
+                tilt_interp=farm.turbine_fTilts,
+                correct_cp_ct_for_tilt=farm.correct_cp_ct_for_tilt_sorted,
+                turbine_type_map=farm.turbine_type_map_sorted,
+                ix_filter=[i],
+                average_method=grid.average_method,
+                cubature_weights=grid.cubature_weights
+            )
+            ct_i = ct_i[:, :, 0:1, None, None]
+        elif farm.controls == 'ct':
+            ct_i = farm.cts_sorted.flatten()[i]
 
         # Since we are filtering for the i'th turbine in the Ct function,
         # get the first index here (0:1)

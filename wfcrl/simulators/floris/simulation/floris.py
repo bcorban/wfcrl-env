@@ -58,7 +58,6 @@ class Floris(BaseClass):
     wake: WakeModelManager = field(converter=WakeModelManager.from_dict)
     farm: Farm = field(converter=Farm.from_dict)
     flow_field: FlowField = field(converter=FlowField.from_dict)
-    controls : list = field(converter = list)
     # These fields are included to appease the requirement that all inputs must
     # be mapped to a field in the class. They are not used in FLORIS.
     name: str  = field(converter=str)
@@ -160,7 +159,10 @@ class Floris(BaseClass):
                 self.grid.sorted_coord_indices
             )
 
-        
+        if self.farm.controls not in ['yaw', 'ct']:
+            raise ValueError(
+                f"Control type {self.farm.controls} is not supported. (combined yaw and ct control is not supported) "
+            )
 
     def check_deprecated_inputs(self):
         """

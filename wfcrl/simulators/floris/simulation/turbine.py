@@ -223,6 +223,7 @@ def power( cps: NDArrayFloat,
     turbine_type_map: NDArrayObject,
     ix_filter: NDArrayInt | Iterable[int] | None = None,
     reference_turbine_diameter: NDArrayObject = None,
+    control : str = 'yaw'
 ) -> NDArrayFloat:
     """Power produced by a turbine adjusted for yaw and tilt. Value
     given in Watts.
@@ -253,25 +254,27 @@ def power( cps: NDArrayFloat,
 
     # TODO: check this - where is it?
     # P = 1/2 rho A V^3 Cp
+    if control == 'yaw':
+        # Down-select inputs if ix_filter is given
+        if ix_filter is not None:
+            ix_filter = _filter_convert(ix_filter, rotor_effective_velocities)
+            rotor_effective_velocities = rotor_effective_velocities[:, :, ix_filter]
+            turbine_type_map = turbine_type_map[:, :, ix_filter]
 
-    # Down-select inputs if ix_filter is given
-    if ix_filter is not None:
-        ix_filter = _filter_convert(ix_filter, rotor_effective_velocities)
-        rotor_effective_velocities = rotor_effective_velocities[:, :, ix_filter]
-        turbine_type_map = turbine_type_map[:, :, ix_filter]
-
-    # Loop over each turbine type given to get power for all turbines
-    # p = np.zeros(np.shape(rotor_effective_velocities))
-    # turb_types = np.unique(turbine_type_map)
-    # for turb_type in turb_types:
-    # #     # Using a masked array, apply the thrust coefficient for all turbines of the current
-    # #     # type to the main thrust coefficient array
-    #     p += (
-    #         power_interp[turb_type](rotor_effective_velocities)
-    #         * (turbine_type_map == turb_type)
-    #     )
-    p=np.array(cps)*0.5*rotor_effective_velocities**3*reference_turbine_diameter**2/4*np.pi #for pitch
-    return p * ref_density_cp_ct
+        # Loop over each turbine type given to get power for all turbines
+        p = np.zeros(np.shape(rotor_effective_velocities))
+        turb_types = np.unique(turbine_type_map)
+        for turb_type in turb_types:
+        #     # Using a masked array, apply the thrust coefficient for all turbines of the current
+        #     # type to the main thrust coefficient array
+            p += (
+                power_interp[turb_type](rotor_effective_velocities)
+                * (turbine_type_map == turb_type)
+            )
+        return p * ref_density_cp_ct
+    elif control == 'ct':
+        p=np.array(cps)*0.5*rotor_effective_velocities**3*reference_turbine_diameter**2/4*np.pi #for pitch
+        return p * ref_density_cp_ct
 
 
 def Ct(

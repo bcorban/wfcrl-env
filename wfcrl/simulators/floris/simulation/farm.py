@@ -55,7 +55,7 @@ class Farm(BaseClass):
     type. Farm should also be used as an entry point to probe objects
     for generating output.
     """
-
+    controls : str = field(converter = str)
     layout_x: NDArrayFloat = field(converter=floris_array_converter)
     layout_y: NDArrayFloat = field(converter=floris_array_converter)
     # TODO: turbine_type should be immutable
@@ -63,6 +63,7 @@ class Farm(BaseClass):
     turbine_library_path: Path = field(
         default=default_turbine_library_path, converter=convert_to_path
     )
+
 
     turbine_definitions: list = field(init=False, validator=iter_validator(list, dict))
     coordinates: List[Vec3] = field(init=False)

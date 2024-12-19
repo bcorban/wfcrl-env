@@ -39,7 +39,7 @@ def get_default_control(controls):
     if "torque" in controls:
         control_dict["torque"] = default_controls.torque
     if "ct" in controls:
-        control_dict["ct"] = default_controls.torque
+        control_dict["ct"] = default_controls.ct
     return control_dict
 
 
@@ -92,7 +92,7 @@ def make(env_id: str, controls: Union[dict, list] = ["yaw"], log=True, **env_kwa
     name = match.group(2)
     simulator = match.group(3)
     case = get_case(name, simulator)
-    case.controls = controls
+    case.controls = list(controls.keys())[0]
     validate_case(env_id, case)
     env_class = MAWindFarmEnv if decentralized == "Dec_" else WindFarmEnv
     simulator_class = FastFarmInterface if simulator == "Fastfarm" else FlorisInterface

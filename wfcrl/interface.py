@@ -570,6 +570,7 @@ class FlorisInterface(BaseInterface):
         if ct is not None:
             self._current_ct_command[0, 0, :] = ct.astype(np.double)
             self.pitchs=self.fi.floris.farm.pitch_angles_sorted.flatten()
+            # print(ct)
         self.update_wind(*next(self.wind_generator))
         self.fi.calculate_wake(yaw_angles=self._current_yaw_command, ct_actions = self._current_ct_command)
         self.current_measures[

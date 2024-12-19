@@ -612,6 +612,7 @@ class FlorisInterface(LoggerBase):
             power_interp=self.floris.farm.turbine_power_interps,
             turbine_type_map=self.floris.farm.turbine_type_map,
             reference_turbine_diameter=self.floris.farm.rotor_diameters,
+            control = self.floris.farm.controls
         )
         return turbine_powers
 
