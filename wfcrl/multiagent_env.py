@@ -217,7 +217,7 @@ class MAWindFarmEnv(AECEnv):
             if loads is not None:
                 load_penalty = np.mean(np.abs(loads))
             # reward = normalized_powers.mean() - 0.1 * load_penalty
-            reward = powers.mean()
+            reward = powers.sum()
             reward = np.array([self.reward_shaper(reward, self.num_moves, load_penalty)])
             self._state = next_state
             for agent in self.agents:

@@ -106,6 +106,4 @@ class TrackReward():
 
     def compute_reward(self, reward :  float , timestep : int, load_penalty : float = 0):
         percentage = (self.reference[timestep] - reward) ** 2 / self.reference[timestep] ** 2
-
-        print(percentage)
-        return - percentage
+        return - percentage*100

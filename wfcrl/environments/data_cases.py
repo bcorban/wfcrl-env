@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Callable, List, Union
-
+import numpy as np
 
 def repr(self):
     repr = f"Wind farm simulation on {self.simulator}: "
@@ -102,6 +102,40 @@ class FlorisCase(FarmCase):
         }
 
 
+class WFSimCase(FarmCase):
+    simulator: str = "WFsim"
+    dt = 3.0
+
+    @property
+    def interface_kwargs(self):
+        return self.simul_params
+
+    @property
+    def simul_params(self):
+        self.Drotor=126.4
+        Lx = (self.xcoords.max() + 4 * self.Drotor / 1e3) * 1e3
+        Ly = (self.ycoords.max() + 0.4) * 1e3
+        return {
+            "xcoords": self.xcoords,
+            "ycoords": self.ycoords,
+            "direction": 270,
+            "speed": 8,
+            "powerscale": 2.3,
+            # Turbine force scaling  (to be tuned)
+            "forcescale": 2,
+
+            "u_Inf": 8.0,  # Initial long. wind speed in m/s
+            "v_Inf": 0.0,  # Initial lat. wind speed in m/s
+            "lm_slope": 0.03,  # Mixing length in x-direction (m)   (to be tuned) 1.2
+            "d_lower": 190,  # Turbulence model gridding property (to be tuned) 73.3
+            "d_upper": 1000,  # Turbulence model gridding property (to be tuned) 601.9
+
+            "Lx": Lx,  # Domain length in x-direction
+            "Ly": Ly,  # Domain length in y-direction
+            "Nx": int(Lx / 20.0),  # Number of cells in x-direction
+            "Ny": int(Ly / 10.0),  # Number of cells in y-direction
+        }
+
 # 3 turbines row layouts
 fastfarm_3t = FastFarmCase(
     num_turbines=3,
@@ -119,6 +153,15 @@ floris_3t = FlorisCase(
     dt=60,
     buffer_window=1,
     t_init=0,
+)
+
+WFSim_3t = WFSimCase(
+    num_turbines=3,
+    xcoords = np.array([0.4] + [0.4+4*126.4/1e3] + [0.4+2*4*126.4/1e3]),
+    ycoords = np.array([0.4]*3),
+    dt=3,
+    buffer_window=300,
+    t_init=1100,
 )
 
 # 2 x 3 layouts
@@ -516,10 +559,26 @@ class FarmRowFloris(FlorisCase):
     def get_ycoords(cls, num_turbines):
         return [0.0 for _ in range(num_turbines)]
 
+class FarmRowWFsim(WFSimCase):
+    """
+    Base Layout.
+    Simple farm with M aligned turbines.
+    """
+
+    dt = 1
+    buffer_window = 1
+    t_init = 0
+
+    def get_xcoords(num_turbines):
+        Drotor = 126.4
+        return [ 0.4 + i * 4 * Drotor/1e3 for i in range(num_turbines)]
+
+    def get_ycoords(num_turbines):
+        return [0.4 for _ in range(num_turbines)]
 
 named_cases_dictionary = {
     "Turb_TCRWP_": [fastfarm_TCRWP, floris_TCRWP],
-    "Turb3_Row1_": [fastfarm_3t, floris_3t],
+    "Turb3_Row1_": [fastfarm_3t, floris_3t, WFSim_3t],
     "Turb6_Row2_": [fastfarm_6t, floris_6t],
     "Turb16_Row5_": [fastfarm_16t, floris_16t],
     "Turb32_Row5_": [fastfarm_32t, floris_32t],

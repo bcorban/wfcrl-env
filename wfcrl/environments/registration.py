@@ -7,7 +7,7 @@ from wfcrl.environments.data_cases import (
     DefaultControl,
     FarmRowFastfarm,
     FarmRowFloris,
-    # FarmRowWFSim,
+    FarmRowWFsim,
     named_cases_dictionary,
 )
 from wfcrl.interface import FastFarmInterface, FlorisInterface, WFSimInterface
@@ -95,7 +95,9 @@ def make(env_id: str, controls: Union[dict, list] = ["yaw"], log=True, **env_kwa
     case.controls = list(controls.keys())[0]
     validate_case(env_id, case)
     env_class = MAWindFarmEnv if decentralized == "Dec_" else WindFarmEnv
-    simulator_class = FastFarmInterface if simulator == "Fastfarm" else FlorisInterface
+    if simulator == "Fastfarm" : simulator_class = FastFarmInterface
+    elif simulator == "Floris": simulator_class = FlorisInterface
+    elif simulator == "WFSim": simulator_class = WFSimInterface
     if not isinstance(controls, dict):
         controls = get_default_control(controls)
     if "wind_time_series" in env_kwargs:
